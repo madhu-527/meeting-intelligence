@@ -1,0 +1,15 @@
+# Virtual Environment
+venv/
+__pycache__/
+*.pyc
+
+# Secrets & Local DBs
+backend/.env
+backend/meetings.db
+backend/chroma_db/
+backend/temp_*
+
+# Node & Build artifacts
+frontend/node_modules/
+frontend/dist/
+.DS_Store
