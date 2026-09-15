@@ -1,20 +1,39 @@
 import os
 import json
+import asyncio
+import logging
 from typing import TypedDict, List
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import HumanMessage
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 api_key = os.getenv("GEMINI_API_KEY")
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-3.6-flash",
-    temperature=0.0,
-    google_api_key=api_key
+    model="gemini-1.5-flash",
+    temperature=0.2,
+    google_api_key=api_key,
+    max_retries=3
 )
+
+async def invoke_with_retry(prompt: str, retries: int = 3, delay: float = 2.0):
+    """Executes LLM call with automated backoff retry for 429 Rate Limit spikes."""
+    for attempt in range(retries):
+        try:
+            return await llm.ainvoke([HumanMessage(content=prompt)])
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                if attempt < retries - 1:
+                    wait_time = delay * (2 ** attempt)
+                    logger.warning(f"Rate limit hit. Retrying in {wait_time}s (Attempt {attempt + 1}/{retries})...")
+                    await asyncio.sleep(wait_time)
+                    continue
+            raise e
 
 def extract_text(content) -> str:
     """Extracts raw string even if returned as a list of content blocks."""
@@ -37,7 +56,10 @@ def clean_and_parse_json(content) -> dict:
         raw = raw[3:]
     if raw.endswith("```"):
         raw = raw[:-3]
-    return json.loads(raw.strip())
+    try:
+        return json.loads(raw.strip())
+    except Exception:
+        return {}
 
 class AgentState(TypedDict):
     transcript: str
@@ -61,15 +83,16 @@ async def summary_agent(state: AgentState):
 Transcript:
 {state['transcript']}"""
 
-    res = await llm.ainvoke([HumanMessage(content=prompt)])
+    res = await invoke_with_retry(prompt)
     data = clean_and_parse_json(res.content)
     return {
-        "summary": data.get("summary", ""),
+        "summary": data.get("summary", "Summary unavailable."),
         "key_topics": data.get("key_topics", [])
     }
 
 # 2. Decision Agent
 async def decision_agent(state: AgentState):
+    await asyncio.sleep(1.5)  # Throttle to stay within RPM quota
     prompt = f"""You are a strict Decision Extraction Agent. Extract ONLY confirmed decisions.
 Return a valid JSON object only:
 {{
@@ -79,12 +102,13 @@ Return a valid JSON object only:
 Transcript:
 {state['transcript']}"""
 
-    res = await llm.ainvoke([HumanMessage(content=prompt)])
+    res = await invoke_with_retry(prompt)
     data = clean_and_parse_json(res.content)
     return {"decisions": data.get("decisions", [])}
 
 # 3. Action Item & Dependency Agent
 async def action_agent(state: AgentState):
+    await asyncio.sleep(1.5)  # Throttle to stay within RPM quota
     prompt = f"""Extract action items, blockers, and unresolved questions.
 
 CRITICAL INSTRUCTIONS:
@@ -110,7 +134,7 @@ Return a valid JSON object only:
 Transcript:
 {state['transcript']}"""
 
-    res = await llm.ainvoke([HumanMessage(content=prompt)])
+    res = await invoke_with_retry(prompt)
     data = clean_and_parse_json(res.content)
     return {
         "action_items": data.get("action_items", []),
@@ -120,6 +144,7 @@ Transcript:
 
 # 4. Reviewer & Follow-Up Agent
 async def reviewer_agent(state: AgentState):
+    await asyncio.sleep(1.5)  # Throttle to stay within RPM quota
     prompt = f"""You are a Quality Control Reviewer Agent.
 Compare the extracted Action Items against the original Transcript.
 
@@ -150,7 +175,7 @@ Return a valid JSON object only:
   "reviewer_audit_log": "Audit remark confirming groundedness"
 }}"""
 
-    res = await llm.ainvoke([HumanMessage(content=prompt)])
+    res = await invoke_with_retry(prompt)
     data = clean_and_parse_json(res.content)
     return {
         "action_items": data.get("verified_actions", state["action_items"]),
