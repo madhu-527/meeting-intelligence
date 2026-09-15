@@ -13,7 +13,7 @@ chroma_client = chromadb.PersistentClient(path="./chroma_db")
 meeting_collection = chroma_client.get_or_create_collection(name="meeting_transcripts")
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-3.6-flash",
+    model="gemini-1.5-flash",
     temperature=0.0,
     google_api_key=api_key
 )

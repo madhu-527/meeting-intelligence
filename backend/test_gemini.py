@@ -8,7 +8,7 @@ key = os.getenv("GEMINI_API_KEY")
 print("API Key loaded:", key[:8] + "..." if key else "NONE")
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-3.6-flash",
+    model="gemini-1.5-flash",
     google_api_key=key
 )
 
