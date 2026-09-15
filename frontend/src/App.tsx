@@ -18,6 +18,10 @@ import {
   Mic
 } from "lucide-react";
 
+// Dynamically resolve API URL with fallback and strip any trailing slashes
+const RAW_API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL = RAW_API_URL.replace(/\/+$/, "");
+
 const DEMO_TRANSCRIPT = `Ravi will complete the API integration by Friday. Priya will test the integration after completion.
 We decided to use PostgreSQL for persistence and Redis for agent memory caching.
 Amit raised that the third-party billing documentation is incomplete, which may block the subscription checkout module.
@@ -44,13 +48,13 @@ export default function App() {
   // Fetch list of saved meetings from SQLite
   const fetchPastMeetings = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/meetings");
+      const res = await fetch(`${API_BASE_URL}/api/meetings`);
       if (res.ok) {
         const data = await res.json();
         setPastMeetings(data);
       }
     } catch {
-      // Backend may be reloading or cold
+      // Backend may be sleeping or cold on Render free-tier
     }
   };
 
@@ -70,7 +74,7 @@ export default function App() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("http://localhost:8000/api/transcribe", {
+      const res = await fetch(`${API_BASE_URL}/api/transcribe`, {
         method: "POST",
         body: formData,
       });
@@ -83,10 +87,9 @@ export default function App() {
       const data = await res.json();
       setTranscript(data.transcript);
     } catch (err: any) {
-      setError(err.message || "Failed to transcribe audio.");
+      setError(err.message || "Failed to transcribe audio. Please check network connection or backend logs.");
     } finally {
       setTranscribing(false);
-      // Reset input value so the same file can be chosen again if desired
       e.target.value = "";
     }
   };
@@ -95,7 +98,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:8000/api/meetings/process", {
+      const response = await fetch(`${API_BASE_URL}/api/meetings/process`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -105,14 +108,19 @@ export default function App() {
       });
 
       if (!response.ok) {
-        throw new Error(`API returned HTTP ${response.status}`);
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || `API error: HTTP ${response.status}`);
       }
 
       const data: MeetingReport = await response.json();
       setReport(data);
-      fetchPastMeetings(); // Refresh history dropdown
+      fetchPastMeetings();
     } catch (err: any) {
-      setError(err.message || "Failed to process transcript. Ensure backend is running on port 8000.");
+      setError(
+        err.message?.includes("Failed to fetch")
+          ? "Failed to connect to backend. If the service was idle, it may take 40-50 seconds to spin up on Render. Please try again in a moment."
+          : err.message || "Failed to process transcript."
+      );
     } finally {
       setLoading(false);
     }
@@ -122,7 +130,7 @@ export default function App() {
     if (!historyQuery.trim()) return;
     setRagLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/meetings/query", {
+      const res = await fetch(`${API_BASE_URL}/api/meetings/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: historyQuery }),
