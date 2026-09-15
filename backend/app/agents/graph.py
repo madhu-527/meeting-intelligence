@@ -22,18 +22,28 @@ llm = ChatGoogleGenerativeAI(
     max_retries=3
 )
 
-async def invoke_with_retry(prompt: str, retries: int = 3, delay: float = 2.0):
-    """Executes LLM call with automated backoff retry for 429 Rate Limit spikes."""
+async def invoke_with_retry(prompt: str, retries: int = 4, delay: float = 5.0):
+    """Retries transient Gemini capacity and rate-limit failures with backoff."""
     for attempt in range(retries):
         try:
             return await llm.ainvoke([HumanMessage(content=prompt)])
         except Exception as e:
-            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                if attempt < retries - 1:
-                    wait_time = delay * (2 ** attempt)
-                    logger.warning(f"Rate limit hit. Retrying in {wait_time}s (Attempt {attempt + 1}/{retries})...")
-                    await asyncio.sleep(wait_time)
-                    continue
+            error_text = str(e)
+            is_transient = any(
+                marker in error_text
+                for marker in ("429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE")
+            )
+            if is_transient and attempt < retries - 1:
+                wait_time = delay * (2 ** attempt)
+                logger.warning(
+                    "Transient Gemini failure. Retrying in %ss (attempt %s/%s): %s",
+                    wait_time,
+                    attempt + 1,
+                    retries,
+                    error_text,
+                )
+                await asyncio.sleep(wait_time)
+                continue
             raise e
 
 def extract_text(content) -> str:
