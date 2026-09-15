@@ -7,13 +7,14 @@ from langchain_core.messages import HumanMessage
 load_dotenv()
 
 api_key = os.getenv("GEMINI_API_KEY")
+model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
 # Initialize persistent local ChromaDB
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 meeting_collection = chroma_client.get_or_create_collection(name="meeting_transcripts")
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
+    model=model_name,
     temperature=0.0,
     google_api_key=api_key
 )

@@ -13,9 +13,10 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 api_key = os.getenv("GEMINI_API_KEY")
+model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
+    model=model_name,
     temperature=0.2,
     google_api_key=api_key,
     max_retries=3
