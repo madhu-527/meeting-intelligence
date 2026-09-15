@@ -13,8 +13,8 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 api_key = os.getenv("GEMINI_API_KEY")
-model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
-fallback_model_name = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash")
+model_name = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+fallback_model_name = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3-flash-preview")
 
 llm = ChatGoogleGenerativeAI(
     model=model_name,

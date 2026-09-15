@@ -5,7 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 load_dotenv()
 
 key = os.getenv("GEMINI_API_KEY")
-model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+model_name = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 print("API Key loaded:", key[:8] + "..." if key else "NONE")
 
 llm = ChatGoogleGenerativeAI(

@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage
 load_dotenv()
 
 api_key = os.getenv("GEMINI_API_KEY")
-model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+model_name = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
 # Initialize persistent local ChromaDB
 chroma_client = chromadb.PersistentClient(path="./chroma_db")

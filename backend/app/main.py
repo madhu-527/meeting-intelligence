@@ -178,7 +178,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
         audio_file = genai.upload_file(path=temp_path, mime_type=mime_type or "audio/mp3")
 
         # 3. Transcribe with the configured Gemini model
-        model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-3.6-flash"))
+        model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-3.5-flash"))
         prompt = (
             "Transcribe this meeting audio verbatim into text. "
             "Label speakers if distinguishable (e.g. Speaker 1, Speaker 2). "
