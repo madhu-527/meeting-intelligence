@@ -19,7 +19,7 @@ llm = ChatGoogleGenerativeAI(
     model=model_name,
     temperature=0.2,
     google_api_key=api_key,
-    max_retries=3
+    max_retries=0
 )
 
 async def invoke_with_retry(prompt: str, retries: int = 4, delay: float = 5.0):
@@ -29,6 +29,22 @@ async def invoke_with_retry(prompt: str, retries: int = 4, delay: float = 5.0):
             return await llm.ainvoke([HumanMessage(content=prompt)])
         except Exception as e:
             error_text = str(e)
+            quota_exhausted = any(
+                marker in error_text.lower()
+                for marker in (
+                    "exceeded your current quota",
+                    "free_tier",
+                    "dailylimit",
+                    "perday",
+                    "quota exceeded",
+                )
+            )
+            if quota_exhausted:
+                raise RuntimeError(
+                    "Gemini API daily quota exhausted for this project. "
+                    "Enable billing or wait for the quota to reset before processing another transcript."
+                ) from e
+
             is_transient = any(
                 marker in error_text
                 for marker in ("429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE")
