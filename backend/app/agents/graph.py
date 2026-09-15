@@ -28,11 +28,15 @@ fallback_llm = ChatGoogleGenerativeAI(
     google_api_key=api_key,
     max_retries=0
 )
+fallback_model_names = [name for name in (model_name, fallback_model_name) if name]
+llm_by_model = {model_name: llm, fallback_model_name: fallback_llm}
 
 async def invoke_with_retry(prompt: str, retries: int = 4, delay: float = 5.0):
     """Retries transient Gemini capacity and rate-limit failures with backoff."""
-    active_llm = llm
+    active_model_index = 0
     for attempt in range(retries):
+        active_model_name = fallback_model_names[active_model_index]
+        active_llm = llm_by_model[active_model_name]
         try:
             return await active_llm.ainvoke([HumanMessage(content=prompt)])
         except Exception as e:
@@ -54,13 +58,14 @@ async def invoke_with_retry(prompt: str, retries: int = 4, delay: float = 5.0):
                 ) from e
 
             is_capacity_error = "503" in error_text or "UNAVAILABLE" in error_text
-            if is_capacity_error and active_llm is llm and fallback_model_name != model_name:
+            if is_capacity_error and active_model_index < len(fallback_model_names) - 1:
+                active_model_index += 1
+                next_model_name = fallback_model_names[active_model_index]
                 logger.warning(
                     "Gemini model %s is unavailable; switching to fallback model %s.",
-                    model_name,
-                    fallback_model_name,
+                    active_model_name,
+                    next_model_name,
                 )
-                active_llm = fallback_llm
                 continue
 
             is_transient = any(
@@ -70,7 +75,8 @@ async def invoke_with_retry(prompt: str, retries: int = 4, delay: float = 5.0):
             if is_transient and attempt < retries - 1:
                 wait_time = delay * (2 ** attempt)
                 logger.warning(
-                    "Transient Gemini failure. Retrying in %ss (attempt %s/%s): %s",
+                    "Transient Gemini failure for %s. Retrying in %ss (attempt %s/%s): %s",
+                    active_model_name,
                     wait_time,
                     attempt + 1,
                     retries,
