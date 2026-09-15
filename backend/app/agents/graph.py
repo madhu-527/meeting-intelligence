@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 api_key = os.getenv("GEMINI_API_KEY")
 model_name = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+fallback_model_name = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash")
 
 llm = ChatGoogleGenerativeAI(
     model=model_name,
@@ -21,12 +22,19 @@ llm = ChatGoogleGenerativeAI(
     google_api_key=api_key,
     max_retries=0
 )
+fallback_llm = ChatGoogleGenerativeAI(
+    model=fallback_model_name,
+    temperature=0.2,
+    google_api_key=api_key,
+    max_retries=0
+)
 
 async def invoke_with_retry(prompt: str, retries: int = 4, delay: float = 5.0):
     """Retries transient Gemini capacity and rate-limit failures with backoff."""
+    active_llm = llm
     for attempt in range(retries):
         try:
-            return await llm.ainvoke([HumanMessage(content=prompt)])
+            return await active_llm.ainvoke([HumanMessage(content=prompt)])
         except Exception as e:
             error_text = str(e)
             quota_exhausted = any(
@@ -44,6 +52,16 @@ async def invoke_with_retry(prompt: str, retries: int = 4, delay: float = 5.0):
                     "Gemini API daily quota exhausted for this project. "
                     "Enable billing or wait for the quota to reset before processing another transcript."
                 ) from e
+
+            is_capacity_error = "503" in error_text or "UNAVAILABLE" in error_text
+            if is_capacity_error and active_llm is llm and fallback_model_name != model_name:
+                logger.warning(
+                    "Gemini model %s is unavailable; switching to fallback model %s.",
+                    model_name,
+                    fallback_model_name,
+                )
+                active_llm = fallback_llm
+                continue
 
             is_transient = any(
                 marker in error_text
