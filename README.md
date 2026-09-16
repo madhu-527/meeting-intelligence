@@ -62,36 +62,46 @@ Raw Transcript / Audio Upload
 
 ---
 
-## 📂 Repository Structure
+# meeting-intelligence
+
+## Repository Structure
 
 ```text
 meeting-intelligence/
 ├── backend/
-│   ├── app/
-│   │   ├── agents/
-│   │   │   ├── __init__.py
-│   │   │   └── graph.py          # LangGraph multi-agent pipeline & retry logic
-│   │   ├── db/
-│   │   │   ├── __init__.py
-│   │   │   ├── models.py         # SQLAlchemy schemas for meetings & action items
-│   │   │   └── session.py        # Database engine setup
-│   │   ├── services/
-│   │   │   ├── audio.py          # Multimodal audio ingestion
-│   │   │   └── rag.py            # ChromaDB vector embedding & RAG search
-│   │   └── main.py               # FastAPI routes, CORS configuration, API controllers
-│   └── requirements.txt          # Python dependencies
-├── frontend/
-│   ├── src/
-│   │   ├── App.tsx               # Main dashboard UI & reactive API integration
-│   │   ├── types.ts              # TypeScript interfaces for API schemas
-│   │   ├── index.css             # Tailwind styling rules
-│   │   └── main.tsx              # React DOM entrypoint
-│   ├── package.json              # Frontend dependencies and scripts
-│   ├── vite.config.ts            # Vite build configuration
-│   └── tailwind.config.js        # UI utility styles
-└── README.md
+│   ├── requirements.txt
+│   ├── test_gemini.py
+│   └── app/
+│       ├── __init__.py
+│       ├── database.py
+│       ├── main.py
+│       ├── rag.py
+│       ├── schemas.py
+│       └── agents/
+│           ├── __init__.py
+│           └── graph.py
+├── chroma_db/
+│   ├── chroma.sqlite3
+│   └── 108e11cb-32cb-4bbc-8e63-f30a3f19e3e2/
+└── frontend/
+    ├── index.html
+    ├── package.json
+    ├── postcss.config.js
+    ├── tailwind.config.js
+    ├── tsconfig.json
+    ├── vite.config.ts
+    └── src/
+        ├── App.js
+        ├── App.tsx
+        ├── index.css
+        ├── main.js
+        ├── main.tsx
+        ├── types.js
+        ├── types.ts
+        └── vite-env.d.ts
 ```
 
+This repository is organized into a FastAPI backend, a frontend app, and a local vector database for meeting intelligence workflows.
 ---
 
 ## ⚙️ Local Development Setup
